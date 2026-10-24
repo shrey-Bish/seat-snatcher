@@ -1,0 +1,23 @@
+{
+  "classes": [
+    {
+      "CLAS": {"STRM": "2271", "CLASSNBR": "12745", "SUBJECT": "MAT", "CATALOGNBR": "265", "TITLE": "Calculus for Engineers I", "CLASSSECTION": "7101", "SESSIONCODE": "A", "CAMPUS": "TEMPE", "LOCATION": "ASUONLINE", "INSTRUCTIONMODE": "OL", "STARTTIME": null, "ENDTIME": null, "ENRLTOT": "120", "ENRLCAP": "120", "ENRLSTAT": "C", "INSTRUCTORSLIST": ["Scott Surgent"]},
+      "DAYLIST": [""],
+      "seatInfo": {"ENRL_CAP": 120, "ENRL_TOT": 120},
+      "reservedSeatsInfo": []
+    },
+    {
+      "CLAS": {"STRM": "2271", "CLASSNBR": "10335", "SUBJECT": "MAT", "CATALOGNBR": "265", "TITLE": "Calculus for Engineers I", "CLASSSECTION": "1001", "SESSIONCODE": "C", "CAMPUS": "TEMPE", "LOCATION": "TEMPE", "INSTRUCTIONMODE": "P", "STARTTIME": "8:00 AM", "ENDTIME": "8:50 AM", "ENRLTOT": "2", "ENRLCAP": "42", "ENRLSTAT": "O", "INSTRUCTORSLIST": ["Staff"]},
+      "DAYLIST": ["M W F"],
+      "seatInfo": {"ENRL_CAP": 42, "ENRL_TOT": 2},
+      "reservedSeatsInfo": [{"ENRL_CAP": 40, "ENRL_TOT": 2, "RSRV_CAP_NBR": 101}]
+    },
+    {
+      "CLAS": {"STRM": "2271", "CLASSNBR": "18607", "SUBJECT": "CSE", "CATALOGNBR": "340", "TITLE": "Principles of Programming Lang", "CLASSSECTION": "1001", "SESSIONCODE": "C", "CAMPUS": "TEMPE", "LOCATION": "TEMPE", "INSTRUCTIONMODE": "P", "STARTTIME": "10:30 AM", "ENDTIME": "11:45 AM", "ENRLTOT": "181", "ENRLCAP": "220", "ENRLSTAT": "O", "INSTRUCTORSLIST": ["David Claveau"]},
+      "DAYLIST": ["T Th"],
+      "seatInfo": {"ENRL_CAP": 220, "ENRL_TOT": 183},
+      "reservedSeatsInfo": [{"ENRL_CAP": 5, "ENRL_TOT": 0, "RSRV_CAP_NBR": 101}]
+    }
+  ],
+  "total": {"value": 3, "relation": "eq"}
+}
