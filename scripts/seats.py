@@ -122,6 +122,70 @@ def when(c):
     return "online" if clas.get("INSTRUCTIONMODE") in ("OL", "ICOURSE") or clas.get("LOCATION") == "ASUONLINE" else "time TBA"
 
 
+def comp(c):
+    """This section's component: LEC, REC, LAB, ..."""
+    clas = c["CLAS"]
+    return (clas.get("COMPONENTPRIMARY") or clas.get("SSRCOMPONENT") or "LEC").upper()
+
+
+def is_main(c):
+    """True for the course's main component (usually the lecture)."""
+    clas = c["CLAS"]
+    main = (clas.get("SSRCOMPONENT") or "LEC").upper()
+    return comp(c) == main
+
+
+def group_key(c):
+    """Sections that must be taken together share this key (a lecture and its recitations or labs)."""
+    clas = c["CLAS"]
+    if not clas.get("ASSOCIATEDCLASS"):
+        return None
+    return (clas.get("SUBJECT"), clas.get("CATALOGNBR"), clas.get("CAMPUS"), clas.get("SESSIONCODE"),
+            str(clas.get("ASSOCIATEDCLASS")))
+
+
+def partner_sets(c, course):
+    """Linked sections the student also needs, by component: {"REC": [...], "LAB": [...]}.
+    The student needs one section of every other component in the group (a lecture plus one recitation
+    plus one lab, for example)."""
+    key = group_key(c)
+    if key is None:
+        return {}
+    sets = {}
+    for x in course:
+        if group_key(x) == key and x["CLAS"]["CLASSNBR"] != c["CLAS"]["CLASSNBR"] and comp(x) != comp(c):
+            sets.setdefault(comp(x), []).append(x)
+    return sets
+
+
+def required_partners(c, course):
+    return [x for lst in partner_sets(c, course).values() for x in lst]
+
+
+def takeable(c, course):
+    """(can the student get in right now?, reason)."""
+    if seats(c)[4] == 0:
+        return False, "no unreserved seat"
+    for kind, lst in partner_sets(c, course).items():
+        if not any(seats(p)[4] > 0 for p in lst):
+            return False, f"every linked {kind} is full"
+    return True, ""
+
+
+def print_partners(c, course):
+    for kind, lst in partner_sets(c, course).items():
+        print(f"    needs a {kind}: " + "; ".join(short(p) for p in lst))
+
+
+def open_partner_text(c, course):
+    picks = []
+    for kind, lst in partner_sets(c, course).items():
+        free = [p for p in lst if seats(p)[4] > 0]
+        if free:
+            picks.append(", ".join("#" + p["CLAS"]["CLASSNBR"] for p in free[:3]) + f" ({kind})")
+    return "; ".join(picks)
+
+
 def describe(c):
     clas = c["CLAS"]
     cap, taken, open_, res_open, free = seats(c)
@@ -132,8 +196,14 @@ def describe(c):
         state = f"{open_} open of {cap} ({res_open} reserved for certain students)"
     else:
         state = f"{open_} open of {cap}"
-    return (f"#{clas['CLASSNBR']} {clas['SUBJECT']} {clas['CATALOGNBR']} sec {clas.get('CLASSSECTION', '?')}, "
+    return (f"#{clas['CLASSNBR']} {clas['SUBJECT']} {clas['CATALOGNBR']} {comp(c)} sec {clas.get('CLASSSECTION', '?')}, "
             f"session {clas.get('SESSIONCODE', '?')}, {clas.get('CAMPUS', '?').title()}, {when(c)}, {who}: {state}")
+
+
+def short(c):
+    cap, taken, open_, res_open, free = seats(c)
+    s = "FULL" if open_ == 0 else (f"{free} open" if not res_open else f"{free} open + {res_open} reserved")
+    return f"#{c['CLAS']['CLASSNBR']} {comp(c)} sec {c['CLAS'].get('CLASSSECTION', '?')} ({s})"
 
 
 def parse_course(text):
@@ -153,17 +223,25 @@ def cmd_list(a):
     if not classes:
         print(f"No sections of {subject} {number} found for {term_name(term)}.")
         return 3
+    # Show the main sections (usually lectures); linked recitations/labs are listed under each one.
+    mains = [c for c in classes if is_main(c)] or classes
+    rows = [(c, takeable(c, classes)) for c in mains]
     if a.full_only:
-        classes = [c for c in classes if seats(c)[2] == 0]
+        rows = [r for r in rows if not r[1][0]]
     if a.open_only:
-        classes = [c for c in classes if seats(c)[2] > 0]
-    full = sum(1 for c in classes if seats(c)[2] == 0)
-    print(f"{subject} {number}, {term_name(term)}: {len(classes)} sections shown, {full} full.")
-    classes.sort(key=lambda c: (seats(c)[2] > 0, c["CLAS"]["CLASSNBR"]))
-    for c in classes[: a.limit]:
-        print("- " + describe(c))
-    if len(classes) > a.limit:
-        print(f"...and {len(classes) - a.limit} more. Narrow with --campus, --full-only or --open-only.")
+        rows = [r for r in rows if r[1][0]]
+    can = sum(1 for _, (ok, _) in rows if ok)
+    print(f"{subject} {number}, {term_name(term)}: {len(rows)} sections shown, {can} you can get into now, "
+          f"{len(rows) - can} full or blocked.")
+    rows.sort(key=lambda r: (not r[1][0], r[0]["CLAS"]["CLASSNBR"]))
+    for c, (ok, why) in rows[: a.limit]:
+        line = "- " + describe(c)
+        if not ok and why and why != "no unreserved seat":
+            line += f" [blocked: {why}]"
+        print(line)
+        print_partners(c, classes)
+    if len(rows) > a.limit:
+        print(f"...and {len(rows) - a.limit} more. Narrow with --campus, --full-only or --open-only.")
     print(page_link(term, subject=subject, number=number))
     return 0
 
@@ -203,22 +281,37 @@ def cmd_check(a):
             code = max(code, 3) if code < 10 else code
             continue
         c = found[0]
+        course = [c]
+        if group_key(c) is not None:
+            course = fetch({"term": term, "subject": c["CLAS"]["SUBJECT"], "catalogNbr": c["CLAS"]["CATALOGNBR"]},
+                           a.sample) or [c]
+            course = [x for x in course if x["CLAS"]["CLASSNBR"] != nbr] + [c]
         cap, taken, open_, res_open, free = seats(c)
+        ok, why = takeable(c, course)
         key = f"{term}:{nbr}"
         before = state.get(key)
-        state[key] = {"open": open_, "unreserved_open": free, "checked_utc": now}
+        was_ok = bool(before and before.get("takeable", before.get("unreserved_open", 0) > 0))
+        state[key] = {"open": open_, "unreserved_open": free, "takeable": ok, "checked_utc": now}
         print("- " + describe(c))
-        if free > 0 and (before is None or before.get("unreserved_open", 0) == 0):
-            print(f"SEAT OPEN: #{nbr} has {free} seat(s) open now. Register in My ASU before someone else does.")
+        partners = required_partners(c, course)
+        print_partners(c, course)
+        if ok and not was_ok:
+            msg = f"SEAT OPEN: #{nbr} has {free} seat(s) open now"
+            extra = open_partner_text(c, course)
+            if extra:
+                msg += f". Add a linked section at the same time, these have room: {extra}"
+            print(msg + ". Register in My ASU before someone else does.")
             print(page_link(term, class_nbr=nbr))
             code = 10
+        elif not ok and free > 0 and partners and (before is None or before.get("unreserved_open", 0) == 0):
+            print(f"#{nbr} has a seat, but {why}, so you can't enroll yet. Still watching.")
         elif open_ > 0 and free == 0 and (before is None or before.get("open", 0) == 0):
             print(f"RESERVED ONLY: #{nbr} has {open_} open seat(s), but they are reserved for certain students. "
                   "Check the class page to see who they are for.")
             print(page_link(term, class_nbr=nbr))
             code = max(code, 11) if code != 10 else 10
-        elif open_ == 0 and before and before.get("open", 0) > 0:
-            print(f"#{nbr} filled up again.")
+        elif not ok and was_ok:
+            print(f"#{nbr} can't be taken right now: {why}. Still watching.")
     save_state(state, a.sample)
     return code
 

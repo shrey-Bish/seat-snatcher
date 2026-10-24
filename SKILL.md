@@ -42,10 +42,15 @@ and suggest a default the student can accept with "yes".
    `python3 scripts/seats.py list --course "MAT 265" --term "Spring 2027"`
 
    Add `--campus TEMPE` (or POLY, DOWNTOWN, WEST, ONLINE) if the student named a campus, and `--full-only` if there
-   are many sections and the student wants a full one watched. Each line shows the class number, section, campus,
-   days and time, instructor, and seats ("FULL (120/120)" or "3 open of 42").
-4. Text a short summary: how many sections are full, and the open ones that fit what the student said. If an open
-   section works for them, say so first: the fastest fix is a section that already has a seat.
+   are many sections and the student wants a full one watched. Each line shows the class number, the component
+   (LEC, REC, LAB), section, campus, days and time, instructor, and seats ("FULL (120/120)" or "3 open of 42").
+4. **Linked sections.** Many courses pair each lecture with recitations or labs, and the student needs a seat in
+   each. The script lists the main sections and, under each one, a "needs a REC:" or "needs a LAB:" line with the
+   linked sections and their seats; the student needs one of each. A lecture with seats whose recitations or labs are
+   all full is marked "[blocked: ...]". Explain it in one line when it applies ("Lecture 1001 has room, but both of
+   its recitations are full").
+5. Text a short summary: how many sections the student could get into now, and how many are full or blocked. If one
+   they can get into fits what they said, say so first: the fastest fix is a section that already has room.
    Some open seats are reserved for certain students (a major, a program); the script says so. Tell the student to
    check the class page for who the reserved seats are for.
 
@@ -76,18 +81,21 @@ Run the command in the check-in and act on its exit code. Send nothing when noth
 
 | Exit code | Meaning | What Cubbie does |
 | --- | --- | --- |
-| 0 | No new open seat | Nothing. Stay silent. |
-| 10 | A seat opened that anyone can take | Call the student (if calls are on and it is within their hours), then text. |
+| 0 | Nothing the student can enroll in yet | Nothing. Stay silent. (On the first check, pass on what the script printed, such as "has a seat, but every linked recitation is full".) |
+| 10 | The student can enroll now: an unreserved seat, and room in a linked section if the course has them | Call the student (if calls are on and it is within their hours), then text. |
 | 11 | Only reserved seats opened | Text only: the seat may not be open to them. |
 | 2 | ASU's class search did not answer | Nothing. If it fails 3 checks in a row, text once: "ASU's class search isn't answering, I'll keep trying." |
 | 3 | The class number was not found | Text once with the number, ask the student to check it, and pause that class. |
 
-The script alerts only when a class goes from full to open, so an open seat never triggers a call every hour.
+The script alerts only when a class goes from "can't get in" to "can get in", so an open seat never triggers a call
+every hour. For a lecture, it waits until one of its linked recitations or labs also has room (and the reverse when
+the student watches a recitation or lab).
 
 **The call** says, in a few words: "Seat Snatcher here. A seat just opened in MAT 265, class 12745. Open My ASU and
 register now. The link is in your texts."
-**The text** right after gives the course, the class number, the seats open, and the class page link the script
-printed, on its own line. Then: "Reply 'got it' when you're in, and I'll stop watching."
+**The text** right after gives the course, the class number, the seats open, any linked section with room that
+the student must add at the same time (the script names them: "these have room: #21671 (REC)"), and the class page link the
+script printed, on its own line. Then: "Reply 'got it' when you're in, and I'll stop watching."
 
 ## 4. Stop watching
 
