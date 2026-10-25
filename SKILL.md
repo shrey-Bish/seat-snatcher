@@ -64,13 +64,16 @@ and suggest a default the student can accept with "yes".
 3. After "yes", run one check right away. It records the starting point, and it tells the student at once if a seat
    is already open:
 
-   `python3 scripts/seats.py check --class 12745 --class 34674 --term "Spring 2027"`
+   `python3 scripts/seats.py check --course "CHM 113" --class 34674 --class 34675 --term "Spring 2027"`
+
+   Always pass `--course` with the course the classes belong to: the script then reads seats with the same course
+   search as `list`, which is the most reliable. Watching classes from two different courses means two commands.
 
 4. Create one recurring scheduled check-in with Cubbie's **reminders and scheduled check-ins**, at the times the
    student chose. Word it so it makes sense on its own when it fires, for example:
 
    "Seat Snatcher check for the student: from the seat-snatcher Skill folder, run
-   python3 scripts/seats.py check --class 12745 --class 34674 --term "Spring 2027"
+   python3 scripts/seats.py check --course "CHM 113" --class 34674 --class 34675 --term "Spring 2027"
    and act on the exit code as the Skill says (10: call and text; 11: text; 0: send nothing)."
 
 5. Confirm in one line: which classes, how often, and that the first check already ran.
@@ -101,7 +104,7 @@ script printed, on its own line. Then: "Reply 'got it' when you're in, and I'll 
 
 When the student says they got the seat, asks to stop, or drops the idea:
 
-1. Run `python3 scripts/seats.py forget --class 12745 --term "Spring 2027"`.
+1. Run `python3 scripts/seats.py forget --class 34674 --term "Spring 2027"`.
 2. Delete that class from the scheduled check-in (delete the check-in if no classes are left).
 3. Confirm in one line.
 
@@ -119,6 +122,7 @@ day to add classes, after telling the student.
 ## When something fails
 
 - The script prints "Could not reach ASU class search": try once more on the next check; do not retry in a loop.
+  If the command was missing `--course`, add it to the check-in.
 - A course has no sections that term: say so, and ask whether they meant another term.
 - The student is not at ASU: say the Skill only covers ASU for now.
 
