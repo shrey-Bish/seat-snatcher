@@ -56,7 +56,10 @@ and suggest a default the student can accept with "yes".
 
 ## 2. Set up the watch (only with the student's yes)
 
-1. Ask which class numbers to watch (a student can watch several sections of the same course).
+1. Ask which class numbers to watch (a student can watch several sections of the same course). Then ask one
+   question: "Are you already in another section of this course? If so, what's its class number?" If yes, add
+   `--swap-from <that number>` to the check command: the alert link then uses ASU's Swap, which keeps the student's
+   current section until the new one is confirmed, so they never end up with neither.
 2. Propose the plan and wait for "yes":
    "I'll check #12745 every hour, 7 am to midnight, and call you the moment a seat opens. OK?"
    The student can change how often (every hour is the default and the most this Skill uses), the hours, and call or
@@ -96,9 +99,11 @@ the student watches a recitation or lab).
 
 **The call** says, in a few words: "Seat Snatcher here. A seat just opened in MAT 265, class 12745. Open My ASU and
 register now. The link is in your texts."
-**The text** right after gives the course, the class number, the seats open, any linked section with room that
-the student must add at the same time (the script names them: "these have room: #21671 (REC)"), and the class page link the
-script printed, on its own line. Then: "Reply 'got it' when you're in, and I'll stop watching."
+**The text** right after gives the course, the class number, the seats open, and then the one-tap link the script
+printed under "Add it" (or "Swap into it"), on its own line. That link is ASU's own enroll link: it opens My ASU with the
+class, and its linked recitation or lab, already filled in, so the student only signs in and confirms. If the script named
+linked sections ("these have room: #21671 (REC)"), mention them in case ASU asks the student to pick one. Then:
+"Reply 'got it' when you're in, and I'll stop watching."
 
 ## 4. Stop watching
 
