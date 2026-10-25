@@ -68,6 +68,30 @@ def page_link(term, class_nbr=None, subject=None, number=None):
     return PAGE + "?" + urllib.parse.urlencode(q)
 
 
+def enroll_link(term, c, course, swap_from=None):
+    """ASU's own one-tap enroll link (the one its class search 'Add' button opens), with the linked
+    recitation/lab pre-filled when the course has them. With swap_from, it uses ASU's Swap instead,
+    which keeps the student's current section until the new one is confirmed."""
+    main, rels = c, []
+    if not is_main(c):
+        mains = [p for p in required_partners(c, course) if is_main(p) and seats(p)[4] > 0]
+        if mains:
+            main, rels = mains[0], [c]
+    for kind, lst in sorted(partner_sets(main, course).items()):
+        if rels and any(comp(r) == kind for r in rels):
+            continue
+        free = [p for p in lst if seats(p)[4] > 0]
+        if free:
+            rels.append(free[0])
+    action = "swapclass" if swap_from else "addclass"
+    q = [("STRM", term), ("ASU_CLASS_NBR", main["CLAS"]["CLASSNBR"])]
+    if swap_from:
+        q.append(("ASU_SWAP_CLASS", str(swap_from)))
+    for i, r in enumerate(rels[:2], 1):
+        q.append((f"relClass{i}", r["CLAS"]["CLASSNBR"]))
+    return f"https://www.asu.edu/go/{action}/?" + urllib.parse.urlencode(q)
+
+
 def fetch(params, sample=None):
     if sample:
         name = "sample_classes_after.json" if sample == "after" else "sample_classes.json"
@@ -315,6 +339,10 @@ def cmd_check(a):
             if extra:
                 msg += f". Add a linked section at the same time, these have room: {extra}"
             print(msg + ". Register in My ASU before someone else does.")
+            verb = "Swap into it" if a.swap_from else "Add it"
+            print(f"{verb} (one tap, opens My ASU):")
+            print(enroll_link(term, c, course, a.swap_from))
+            print("Class page:")
             print(page_link(term, class_nbr=nbr))
             code = 10
         elif not ok and free > 0 and partners and (before is None or before.get("unreserved_open", 0) == 0):
@@ -358,6 +386,8 @@ def main(argv=None):
             s.add_argument("--class", dest="cls", action="append", required=True, help="5-digit class number")
             if name == "check":
                 s.add_argument("--course", help='the course the class belongs to, e.g. "CHM 113" (recommended)')
+                s.add_argument("--swap-from", dest="swap_from",
+                               help="class number the student is enrolled in now; the alert link then uses ASU's Swap")
     a = p.parse_args(argv)
     try:
         return {"list": cmd_list, "check": cmd_check, "forget": cmd_forget}[a.cmd](a)
