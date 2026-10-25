@@ -271,21 +271,35 @@ def cmd_check(a):
     state = load_state(a.sample)
     now = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
     code = 0
+    cache = {}
+
+    def course_list(subject, number):
+        if (subject, number) not in cache:
+            cache[(subject, number)] = fetch({"term": term, "subject": subject, "catalogNbr": number}, a.sample)
+        return cache[(subject, number)]
+
     for nbr in a.cls:
         nbr = str(nbr).strip().lstrip("#")
         if not nbr.isdigit():
             raise UserError(f'Class numbers are 5 digits, like 12745 (got "{nbr}").')
-        found = [c for c in fetch({"term": term, "keywords": nbr}, a.sample) if c["CLAS"]["CLASSNBR"] == nbr]
-        if not found:
-            print(f"#{nbr}: no class with that number in {term_name(term)}.")
-            code = max(code, 3) if code < 10 else code
-            continue
-        c = found[0]
-        course = [c]
-        if group_key(c) is not None:
-            course = fetch({"term": term, "subject": c["CLAS"]["SUBJECT"], "catalogNbr": c["CLAS"]["CATALOGNBR"]},
-                           a.sample) or [c]
-            course = [x for x in course if x["CLAS"]["CLASSNBR"] != nbr] + [c]
+        c, course = None, None
+        if a.course:
+            # The course search is the same one `list` uses, and the most reliable way to read seats.
+            lst = course_list(*parse_course(a.course))
+            hit = [x for x in lst if x["CLAS"]["CLASSNBR"] == nbr]
+            if hit:
+                c, course = hit[0], lst
+        if c is None:
+            found = [x for x in fetch({"term": term, "keywords": nbr}, a.sample) if x["CLAS"]["CLASSNBR"] == nbr]
+            if not found:
+                print(f"#{nbr}: no class with that number in {term_name(term)}.")
+                code = max(code, 3) if code < 10 else code
+                continue
+            c = found[0]
+            course = [c]
+            if group_key(c) is not None:
+                course = course_list(c["CLAS"]["SUBJECT"], c["CLAS"]["CATALOGNBR"]) or [c]
+                course = [x for x in course if x["CLAS"]["CLASSNBR"] != nbr] + [c]
         cap, taken, open_, res_open, free = seats(c)
         ok, why = takeable(c, course)
         key = f"{term}:{nbr}"
@@ -342,6 +356,8 @@ def main(argv=None):
             s.add_argument("--limit", type=int, default=12)
         else:
             s.add_argument("--class", dest="cls", action="append", required=True, help="5-digit class number")
+            if name == "check":
+                s.add_argument("--course", help='the course the class belongs to, e.g. "CHM 113" (recommended)')
     a = p.parse_args(argv)
     try:
         return {"list": cmd_list, "check": cmd_check, "forget": cmd_forget}[a.cmd](a)
